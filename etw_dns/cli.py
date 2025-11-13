@@ -80,6 +80,7 @@ class DNSCapture:
 
             event = self.normalizer.normalize(raw_event)
             if event is None:
+                self.stats_tracker.increment_normalize_failed()
                 return
 
             if self.event_filter.has_filters():
