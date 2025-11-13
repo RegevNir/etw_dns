@@ -1,0 +1,15 @@
+# ETW DNS Capture Tool Dependencies
+
+# ETW library - using GitHub release v0.3.0 (PyPI version 0.2.0 is outdated)
+git+https://github.com/fireeye/pywintrace@v0.3.0
+
+# Standard library dependencies (no external packages needed for MVP)
+# All other functionality uses Python standard library:
+# - argparse for CLI
+# - json for JSONL output
+# - threading for background writer
+# - queue for event buffering
+# - signal for graceful shutdown
+# - ctypes for Windows API calls (privilege detection)
+# - datetime for timestamps
+# - logging for internal logging

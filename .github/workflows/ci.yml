@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, dev, devin/** ]
+  pull_request:
+    branches: [ main, dev ]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 black
+      
+      - name: Run flake8
+        run: |
+          # Stop the build if there are Python syntax errors or undefined names
+          flake8 etw_dns --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Exit-zero treats all errors as warnings
+          flake8 etw_dns --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+      
+      - name: Check formatting with black
+        run: |
+          black --check etw_dns
+
+  test-linux:
+    name: Test on Linux (Fake Provider)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov
+      
+      - name: Run tests
+        run: |
+          pytest tests/ -v --cov=etw_dns --cov-report=term-missing
+
+  test-windows:
+    name: Test on Windows
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov
+      
+      - name: Run tests
+        run: |
+          pytest tests/ -v --cov=etw_dns --cov-report=term-missing
+      
+      - name: Test CLI help
+        run: |
+          python -m etw_dns --help
+      
+      - name: Test with fake provider
+        run: |
+          # Run for 5 seconds with fake provider
+          Start-Process python -ArgumentList "-m", "etw_dns", "--fake-provider", "--out", "test_output.jsonl" -PassThru | ForEach-Object {
+            Start-Sleep -Seconds 5
+            Stop-Process -Id $_.Id -Force
+          }
+          
+          # Verify output file was created and contains events
+          if (Test-Path test_output.jsonl) {
+            $lineCount = (Get-Content test_output.jsonl | Measure-Object -Line).Lines
+            Write-Host "Generated $lineCount events"
+            if ($lineCount -lt 10) {
+              Write-Error "Expected at least 10 events, got $lineCount"
+              exit 1
+            }
+          } else {
+            Write-Error "Output file not created"
+            exit 1
+          }
+        shell: pwsh
