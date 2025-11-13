@@ -29,7 +29,7 @@ class DNSCapture:
         self.args = args
         self.running = False
 
-        self.normalizer = EventNormalizer()
+        self.normalizer = EventNormalizer(debug=args.debug_etw)
         self.event_filter = EventFilter()
         self.output_writer = OutputWriter(output_file=args.out if args.out else None)
         self.stats_tracker = StatsTracker(report_interval=args.stats_interval)

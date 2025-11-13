@@ -117,23 +117,86 @@ class RealEtwProvider(EtwInterface):
         """
         Convert raw ETW event to dictionary.
 
+        This method properly flattens pywintrace event objects by extracting
+        EventHeader and payload containers (EventPayload, Payload, EventData,
+        UserData, Properties).
+
         Args:
             event: Raw ETW event from pywintrace.
 
         Returns:
-            Dictionary representation of the event.
+            Dictionary representation of the event with flattened structure.
         """
 
         event_dict = {}
 
         try:
-            if hasattr(event, "__dict__"):
-                event_dict = dict(event.__dict__)
-            elif isinstance(event, dict):
-                event_dict = dict(event)
-            else:
-                event_dict = {"raw_event": str(event)}
-        except Exception:
+            if hasattr(event, "EventHeader"):
+                header = event.EventHeader
+                event_dict["EventHeader"] = {}
+                for attr in ["TimeStamp", "ProcessId", "ThreadId", "ActivityId"]:
+                    if hasattr(header, attr):
+                        event_dict["EventHeader"][attr] = getattr(header, attr)
+
+            payload_containers = [
+                "EventPayload",
+                "Payload",
+                "EventData",
+                "UserData",
+                "Properties",
+            ]
+
+            payload_found = False
+            for container_name in payload_containers:
+                if hasattr(event, container_name):
+                    container = getattr(event, container_name)
+                    if container is not None:
+                        if isinstance(container, dict):
+                            event_dict.update(container)
+                            payload_found = True
+                            break
+                        elif hasattr(container, "__dict__"):
+                            event_dict.update(container.__dict__)
+                            payload_found = True
+                            break
+                        else:
+                            for attr in dir(container):
+                                if not attr.startswith("_"):
+                                    try:
+                                        value = getattr(container, attr)
+                                        if not callable(value):
+                                            event_dict[attr] = value
+                                    except Exception:
+                                        pass
+                            if event_dict:
+                                payload_found = True
+                                break
+
+            if not payload_found:
+                if hasattr(event, "__dict__"):
+                    for key, value in event.__dict__.items():
+                        if not key.startswith("_") and key != "EventHeader":
+                            event_dict[key] = value
+                else:
+                    for attr in dir(event):
+                        if not attr.startswith("_") and attr != "EventHeader":
+                            try:
+                                value = getattr(event, attr)
+                                if not callable(value):
+                                    event_dict[attr] = value
+                            except Exception:
+                                pass
+
+            if not event_dict or (len(event_dict) == 1 and "EventHeader" in event_dict):
+                event_dict["raw_event"] = str(event)
+
+        except Exception as e:
+            import sys
+
+            print(
+                f"Error converting ETW event to dict: {e}, falling back to string representation",
+                file=sys.stderr,
+            )
             event_dict = {"raw_event": str(event)}
 
         return event_dict
