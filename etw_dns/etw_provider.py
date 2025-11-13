@@ -195,6 +195,7 @@ class FakeEtwProvider(EtwInterface):
             "github.com",
             "microsoft.com",
             "stackoverflow.com",
+            "linkedin.com",
         ]
 
         query_types = ["A", "AAAA", "CNAME", "PTR", "TXT"]
