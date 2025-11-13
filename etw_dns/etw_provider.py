@@ -118,8 +118,8 @@ class RealEtwProvider(EtwInterface):
         Convert raw ETW event to dictionary.
 
         This method properly flattens pywintrace event objects by extracting
-        EventHeader and payload containers (EventPayload, Payload, EventData,
-        UserData, Properties).
+        EventHeader and payload containers. Handles tuple events (event_id, data)
+        returned by pywintrace.
 
         Args:
             event: Raw ETW event from pywintrace.
@@ -131,6 +131,40 @@ class RealEtwProvider(EtwInterface):
         event_dict = {}
 
         try:
+            if isinstance(event, tuple) and len(event) >= 2:
+                event_id, event_data = event[0], event[1]
+                event_dict["EtwEventId"] = event_id
+
+                if isinstance(event_data, dict):
+                    event_dict.update(event_data)
+                    return event_dict
+                elif hasattr(event_data, "__dict__"):
+                    event_dict.update(event_data.__dict__)
+                    return event_dict
+                else:
+                    for attr in dir(event_data):
+                        if not attr.startswith("_"):
+                            try:
+                                value = getattr(event_data, attr)
+                                if not callable(value):
+                                    event_dict[attr] = value
+                            except Exception:
+                                pass
+                    if len(event_dict) > 1:
+                        return event_dict
+
+            if isinstance(event, str) and (
+                event.startswith("(") or event.startswith("{")
+            ):
+                try:
+                    import ast
+
+                    parsed = ast.literal_eval(event)
+                    return self._convert_etw_event(parsed)
+                except Exception:
+                    pass
+
+            # Handle objects with EventHeader
             if hasattr(event, "EventHeader"):
                 header = event.EventHeader
                 event_dict["EventHeader"] = {}
