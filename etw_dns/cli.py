@@ -128,7 +128,7 @@ class DNSCapture:
             return
 
         print("Starting ETW DNS capture...", file=sys.stderr)
-        
+
         if self.http_ingestor:
             print(f"Agent mode: {self.args.ingest_url}", file=sys.stderr)
             print(
@@ -137,7 +137,8 @@ class DNSCapture:
             )
         else:
             print(
-                f"Output: {self.args.out if self.args.out else 'stdout'}", file=sys.stderr
+                f"Output: {self.args.out if self.args.out else 'stdout'}",
+                file=sys.stderr,
             )
 
         if self.event_filter.has_filters():
@@ -166,7 +167,7 @@ class DNSCapture:
             self.http_ingestor.start()
         else:
             self.output_writer.start()
-            
+
         self.stats_tracker.start()
         self.etw_provider.start()
 
@@ -198,7 +199,7 @@ class DNSCapture:
 
         self.etw_provider.stop()
         self.stats_tracker.stop()
-        
+
         if self.http_ingestor:
             self.http_ingestor.stop()
         else:

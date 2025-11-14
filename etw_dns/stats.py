@@ -153,8 +153,8 @@ class StatsTracker:
         """Print final statistics to stderr."""
         stats = self.get_stats()
 
-        normalized = stats['events_captured'] - stats['normalize_failed']
-        effective_filtered = stats['events_filtered'] + stats['normalize_failed']
+        normalized = stats["events_captured"] - stats["normalize_failed"]
+        effective_filtered = stats["events_filtered"] + stats["normalize_failed"]
 
         print("\n" + "=" * 60, file=sys.stderr)
         print("Final Statistics:", file=sys.stderr)
@@ -168,7 +168,8 @@ class StatsTracker:
         print(f"Events dropped:       {stats['events_dropped']}", file=sys.stderr)
         print(f"Errors:               {stats['errors']}", file=sys.stderr)
         print(
-            f"Elapsed time:         {stats['elapsed_seconds']:.1f} seconds", file=sys.stderr
+            f"Elapsed time:         {stats['elapsed_seconds']:.1f} seconds",
+            file=sys.stderr,
         )
         print(
             f"Average rate:         {stats['events_per_second']:.1f} events/sec",

@@ -75,14 +75,14 @@ class HttpIngestor:
         if self.running:
             transformed = self._transform_event(event)
             self.queue.put(transformed)
-    
+
     def _transform_event(self, event: Dict[str, Any]) -> Dict[str, Any]:
         """
         Transform etw_dns event format to backend API format.
-        
+
         Args:
             event: Event in etw_dns format.
-            
+
         Returns:
             Event in backend API format.
         """
@@ -96,7 +96,11 @@ class HttpIngestor:
             "server_ip": event.get("server_ip"),
             "client_ip": event.get("local_addr"),
             "response_ips": event.get("response_ips", []),
-            "ttl": event.get("response_ttl", [None])[0] if event.get("response_ttl") else None,
+            "ttl": (
+                event.get("response_ttl", [None])[0]
+                if event.get("response_ttl")
+                else None
+            ),
         }
 
     def get_stats(self) -> Dict[str, int]:
