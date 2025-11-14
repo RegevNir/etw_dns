@@ -81,11 +81,14 @@ class HttpIngestor:
         Transform etw_dns event format to backend API format.
 
         Args:
-            event: Event in etw_dns format.
+            event: Event in etw_dns format (DNSEvent object or dict).
 
         Returns:
             Event in backend API format.
         """
+        if hasattr(event, "to_dict"):
+            event = event.to_dict()
+
         return {
             "query_name": event.get("query_name"),
             "query_type": event.get("query_type"),
