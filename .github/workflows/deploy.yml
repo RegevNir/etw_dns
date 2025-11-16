@@ -23,11 +23,16 @@ on:
 env:
   PYTHON_VERSION: '3.10'
 
+permissions:
+  contents: read
+
 jobs:
   # Check if packages are already installed
   check-dependencies:
     name: Check Dependencies
     runs-on: windows-latest
+    permissions:
+      contents: read
     outputs:
       deps-cached: ${{ steps.cache-check.outputs.cache-hit }}
     steps:
@@ -85,6 +90,8 @@ jobs:
     runs-on: windows-latest
     needs: check-dependencies
     if: needs.check-dependencies.outputs.deps-cached != 'true'
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -130,6 +137,8 @@ jobs:
     runs-on: windows-latest
     needs: [check-dependencies, install-dependencies]
     if: always() && (needs.check-dependencies.result == 'success' || needs.install-dependencies.result == 'success')
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -232,6 +241,8 @@ jobs:
     runs-on: windows-latest
     needs: [deploy-data-ingestion]
     if: always() && needs.deploy-data-ingestion.result == 'success'
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -255,6 +266,8 @@ jobs:
     runs-on: windows-latest
     needs: [deploy-backend]
     if: always() && needs.deploy-backend.result == 'success'
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -278,6 +291,8 @@ jobs:
     runs-on: windows-latest
     needs: [deploy-data-ingestion, deploy-backend, deploy-frontend]
     if: always() && !inputs.skip_tests && needs.deploy-data-ingestion.result == 'success'
+    permissions:
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -345,6 +360,8 @@ jobs:
     runs-on: windows-latest
     needs: [deploy-data-ingestion, deploy-backend, deploy-frontend, integration-tests]
     if: always()
+    permissions:
+      contents: read
     steps:
       - name: Generate deployment report
         shell: pwsh
