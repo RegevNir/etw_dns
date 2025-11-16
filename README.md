@@ -227,6 +227,20 @@ python -m etw_dns --fake-provider --out test.jsonl
 
 See [VALIDATION.md](VALIDATION.md) for manual validation steps on Windows.
 
+## Deployment
+
+The project includes a comprehensive GitHub Actions workflow for deployment. See [DEPLOYMENT.md](DEPLOYMENT.md) for details on:
+
+- Automated deployment to staging and production
+- Package installation and caching
+- Windows runner testing
+- Integration tests
+- Manual and tag-based triggers
+
+To deploy:
+1. Use the GitHub Actions "Deploy DNS-Secure App" workflow
+2. Or push a version tag: `git tag v1.0.0 && git push origin v1.0.0`
+
 ## License
 
 MIT License
