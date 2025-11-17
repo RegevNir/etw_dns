@@ -23,6 +23,7 @@ class StatsTracker:
         self._events_filtered = 0
         self._events_written = 0
         self._events_dropped = 0
+        self._normalize_failed = 0
         self._errors = 0
         self._start_time = time.time()
         self._last_report_time = self._start_time
@@ -79,6 +80,11 @@ class StatsTracker:
         with self._lock:
             self._events_dropped += 1
 
+    def increment_normalize_failed(self) -> None:
+        """Increment normalization failed counter."""
+        with self._lock:
+            self._normalize_failed += 1
+
     def increment_errors(self) -> None:
         """Increment errors counter."""
         with self._lock:
@@ -111,6 +117,7 @@ class StatsTracker:
                 "events_filtered": self._events_filtered,
                 "events_written": self._events_written,
                 "events_dropped": self._events_dropped,
+                "normalize_failed": self._normalize_failed,
                 "errors": self._errors,
                 "elapsed_seconds": elapsed,
                 "events_per_second": events_per_sec,
@@ -133,6 +140,7 @@ class StatsTracker:
 
         print(
             f"\n[Stats] Captured: {stats['events_captured']}, "
+            f"Normalize failed: {stats['normalize_failed']}, "
             f"Filtered: {stats['events_filtered']}, "
             f"Written: {stats['events_written']}, "
             f"Dropped: {stats['events_dropped']}, "
@@ -145,19 +153,26 @@ class StatsTracker:
         """Print final statistics to stderr."""
         stats = self.get_stats()
 
+        normalized = stats["events_captured"] - stats["normalize_failed"]
+        effective_filtered = stats["events_filtered"] + stats["normalize_failed"]
+
         print("\n" + "=" * 60, file=sys.stderr)
         print("Final Statistics:", file=sys.stderr)
         print("=" * 60, file=sys.stderr)
-        print(f"Events captured:  {stats['events_captured']}", file=sys.stderr)
-        print(f"Events filtered:  {stats['events_filtered']}", file=sys.stderr)
-        print(f"Events written:   {stats['events_written']}", file=sys.stderr)
-        print(f"Events dropped:   {stats['events_dropped']}", file=sys.stderr)
-        print(f"Errors:           {stats['errors']}", file=sys.stderr)
+        print(f"Events captured:      {stats['events_captured']}", file=sys.stderr)
+        print(f"Normalize failed:     {stats['normalize_failed']}", file=sys.stderr)
+        print(f"Normalized:           {normalized}", file=sys.stderr)
+        print(f"Events filtered:      {stats['events_filtered']}", file=sys.stderr)
+        print(f"Effective filtered:   {effective_filtered}", file=sys.stderr)
+        print(f"Events written:       {stats['events_written']}", file=sys.stderr)
+        print(f"Events dropped:       {stats['events_dropped']}", file=sys.stderr)
+        print(f"Errors:               {stats['errors']}", file=sys.stderr)
         print(
-            f"Elapsed time:     {stats['elapsed_seconds']:.1f} seconds", file=sys.stderr
+            f"Elapsed time:         {stats['elapsed_seconds']:.1f} seconds",
+            file=sys.stderr,
         )
         print(
-            f"Average rate:     {stats['events_per_second']:.1f} events/sec",
+            f"Average rate:         {stats['events_per_second']:.1f} events/sec",
             file=sys.stderr,
         )
 
@@ -167,6 +182,6 @@ class StatsTracker:
                 if stats["events_captured"] > 0
                 else 0
             )
-            print(f"Drop rate:        {drop_rate:.2f}%", file=sys.stderr)
+            print(f"Drop rate:            {drop_rate:.2f}%", file=sys.stderr)
 
         print("=" * 60, file=sys.stderr)

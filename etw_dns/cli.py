@@ -14,6 +14,7 @@ from .normalizer import EventNormalizer
 from .filters import EventFilter
 from .output import OutputWriter
 from .stats import StatsTracker
+from .http_ingest import HttpIngestor
 
 
 class DNSCapture:
@@ -33,6 +34,15 @@ class DNSCapture:
         self.event_filter = EventFilter()
         self.output_writer = OutputWriter(output_file=args.out if args.out else None)
         self.stats_tracker = StatsTracker(report_interval=args.stats_interval)
+
+        self.http_ingestor = None
+        if args.ingest_url:
+            self.http_ingestor = HttpIngestor(
+                ingest_url=args.ingest_url,
+                api_key=args.api_key,
+                batch_size=args.batch_size,
+                flush_interval=args.flush_interval,
+            )
 
         self._configure_filters()
 
@@ -80,6 +90,7 @@ class DNSCapture:
 
             event = self.normalizer.normalize(raw_event)
             if event is None:
+                self.stats_tracker.increment_normalize_failed()
                 return
 
             if self.event_filter.has_filters():
@@ -87,7 +98,10 @@ class DNSCapture:
                     self.stats_tracker.increment_filtered()
                     return
 
-            if self.output_writer.write_event(event):
+            if self.http_ingestor:
+                self.http_ingestor.enqueue_event(event)
+                self.stats_tracker.increment_written()
+            elif self.output_writer.write_event(event):
                 self.stats_tracker.increment_written()
             else:
                 self.stats_tracker.increment_dropped()
@@ -114,9 +128,18 @@ class DNSCapture:
             return
 
         print("Starting ETW DNS capture...", file=sys.stderr)
-        print(
-            f"Output: {self.args.out if self.args.out else 'stdout'}", file=sys.stderr
-        )
+
+        if self.http_ingestor:
+            print(f"Agent mode: {self.args.ingest_url}", file=sys.stderr)
+            print(
+                f"Batch size: {self.args.batch_size}, Flush interval: {self.args.flush_interval}s",
+                file=sys.stderr,
+            )
+        else:
+            print(
+                f"Output: {self.args.out if self.args.out else 'stdout'}",
+                file=sys.stderr,
+            )
 
         if self.event_filter.has_filters():
             print("Filters enabled:", file=sys.stderr)
@@ -140,7 +163,11 @@ class DNSCapture:
         print("Press Ctrl+C to stop capture", file=sys.stderr)
         print("", file=sys.stderr)
 
-        self.output_writer.start()
+        if self.http_ingestor:
+            self.http_ingestor.start()
+        else:
+            self.output_writer.start()
+
         self.stats_tracker.start()
         self.etw_provider.start()
 
@@ -148,8 +175,12 @@ class DNSCapture:
 
         try:
             while self.running and self.etw_provider.is_running():
-                output_stats = self.output_writer.get_stats()
-                self.stats_tracker.update_from_output_stats(output_stats)
+                if self.http_ingestor:
+                    ingest_stats = self.http_ingestor.get_stats()
+                    self.stats_tracker.update_from_output_stats(ingest_stats)
+                else:
+                    output_stats = self.output_writer.get_stats()
+                    self.stats_tracker.update_from_output_stats(output_stats)
 
                 import time
 
@@ -168,7 +199,11 @@ class DNSCapture:
 
         self.etw_provider.stop()
         self.stats_tracker.stop()
-        self.output_writer.stop()
+
+        if self.http_ingestor:
+            self.http_ingestor.stop()
+        else:
+            self.output_writer.stop()
 
         print("Capture stopped.", file=sys.stderr)
 
@@ -235,6 +270,32 @@ Examples:
         "--exclude-process",
         metavar="NAMES",
         help="Exclude these processes (comma-separated)",
+    )
+
+    agent_group = parser.add_argument_group("Agent Mode Options")
+    agent_group.add_argument(
+        "--ingest-url",
+        metavar="URL",
+        help="Enable agent mode and send events to this API endpoint (e.g., http://localhost:8000/api/ingest/batch)",
+    )
+    agent_group.add_argument(
+        "--api-key",
+        metavar="KEY",
+        help="API key for authentication (optional)",
+    )
+    agent_group.add_argument(
+        "--batch-size",
+        metavar="N",
+        type=int,
+        default=10,
+        help="Number of events to batch before sending (default: 10)",
+    )
+    agent_group.add_argument(
+        "--flush-interval",
+        metavar="SECONDS",
+        type=float,
+        default=5.0,
+        help="Time in seconds between flushes (default: 5.0)",
     )
 
     stats_group = parser.add_argument_group("Statistics Options")
